@@ -71,6 +71,7 @@ namespace net_protocol {
 
             Incoming:
                 socket - Дескриптор сокета
+
                 backlog - Определяет максимальную длину 
                           очереди ожидающих подключений
         */
@@ -86,22 +87,70 @@ namespace net_protocol {
         static void MakeSocketReuseable(int fd);
 
         /*
+            * Делает сокет не блокирующим
+
+            Incoming:
+                fd - Дескриптор сокета
         */
         static void SetNonBlockingSocket(int fd);
 
         /*
-        */
-        static void IPConverter(int af, const char* src, void* dst);
+            * Пытается установить соединение между двумя сокетами
 
-        /*
+            Incoming:
+                socket - Дескриптор сокета
+
+                address - Указатель на структуру адреса сокета, 
+                          к которому будет предпринята попытка подключения
+
+                addr_len - Размер адреса сокета, на который указывает адрес в байтах
+
         */
         static void Connect(int socket, const sockaddr* address, socklen_t addr_len);
 
         /*
+            * Пытается установить соединение между двумя сокетами
+
+            Incoming:
+                af - Семейство адресов
+
+                src - Строка, заверщающаяся нулем. Он указывает на передаваемую строку
+
+                dst - Указывает на буфер, в который inet_pton() сохраняет числовой адрес
+
+        */
+        static void IPConverter(int af, const char* src, void* dst);
+
+        /*
+            * Записывает N байт из buf в файл или сокет, связанный с fs. 
+            N не должно быть больше INT_MAX
+
+            Incoming:
+                fidles - Дескриптор файла или сокета
+
+                buf - Указатель на буфер, содержащий данные, подлежащие записи
+
+                ndyte - Длина в байтах буфера, на который указывает параметр buf
+
+            Return:
+                возвращает пару из статуса выполнения write() и флага на закрытия соиденения
+
         */
         static std::pair<int, bool> Write(int fidles, const char* buf, size_t ndyte);
 
         /*
+            * Из файла, указанного файловым дескриптором fidles, функция read() 
+            считывает N байт входных данных в область памяти, указанную buf
+
+            Incoming:
+                fidles - Дескриптор файла или сокета
+
+                buf - Указатель на буфер, содержащий данные, подлежащие записи
+
+                ndyte - Длина в байтах буфера, на который указывает параметр buf
+
+            Return:
+                возвращает пару из статуса выполнения read() и флага на закрытия соиденения
         */
         static std::pair<int, bool> Read(int fidles, char* buf, size_t ndyte);
     };

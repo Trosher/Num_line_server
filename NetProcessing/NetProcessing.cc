@@ -40,3 +40,61 @@ void net_protocol::NetProcessing::MakeSocketReuseable(int fd) {
         exit(EXIT_FAILURE);
     }
 }
+
+void net_protocol::NetProcessing::SetNonBlockingSocket(int fd) {
+    int on = 1;
+    if (ioctl(fd, FIONBIO, (char*)&on) < 0) {
+        perror("ERROR: Couldnt set socket to be non-blocking ");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void net_protocol::NetProcessing::Connect(int socket, const sockaddr* address, 
+                                          socklen_t addr_len) {
+    if (connect(socket, address, addr_len) == -1) {
+        perror("ERROR: Connection failed ");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void net_protocol::NetProcessing::IPConverter(int af, const char* src, void* dst) {
+    int result = inet_pton(af, src, dst);
+    if (result == 0) {
+        printef("inet_pton failed: src does not contain a character"
+        " string representing a valid network address in the specified"
+        " address family\n");
+        exit(EXIT_FAILURE);
+    }
+    if (result == -1) {
+        perror("inet_pton failed ");
+        exit(EXIT_FAILURE);
+    }
+}
+
+std::pair<int, bool> net_protocol::NetProcessing::Write(int fidles, const char* buf,
+                                                        size_t nbyte) {
+    bool close_connection = false;
+    int status = write(fidles, buf, nbyte);
+    if (status < 0) {
+        if (errno != EWOULDBLOCK) {
+            perror("ERROR: error while writing : ");
+            close_connection = true;
+        }
+    } else if (status == 0) {
+        std::cout << "Connection close by peer with fd number = " << fidles
+              << std::endl;
+        close_connection = true;
+    }
+    return {status, close_connection};
+}
+
+std::pair<int, bool> net_protocol::NetProcessing::Read(int fidles, const char* buf,
+                                                        size_t nbyte) {
+    bool close_connection = false;
+    int status = read(fidles, buf, nbyte);
+    if (status < 0) {
+        perror("ERROR: Couldnt read message from FD ");
+        close_connection = true;
+    }
+    return {status, close_connection};
+}
