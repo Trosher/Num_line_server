@@ -2,7 +2,6 @@
 
 int net_protocol::NetProcessing::Socket(int domain, int type, int protocol) {
     int result = socket(domain, type, protocol);
-
     if (result == -1) {
         perror("ERROR: Couldnt get descriptor ");
         exit(EXIT_FAILURE);
@@ -11,7 +10,7 @@ int net_protocol::NetProcessing::Socket(int domain, int type, int protocol) {
     return result;
 }
 
-void net_protocol::NetProcessing::Bind(int sockfd, const sockaddr* addr
+void net_protocol::NetProcessing::Bind(int sockfd, const sockaddr* addr,
                                         socklen_t addrlen) {
     if (bind(sockfd, addr, addrlen) == -1) {
         perror("ERROR: Coldnt bind socket ");
@@ -19,7 +18,7 @@ void net_protocol::NetProcessing::Bind(int sockfd, const sockaddr* addr
     }
 }
 
-sockaddr_in tcp::NetProcessing::InitAddr(int port) {
+sockaddr_in net_protocol::NetProcessing::InifAddr(int port) {
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -35,7 +34,7 @@ void net_protocol::NetProcessing::Listen(int socket, int backlog) {
 
 void net_protocol::NetProcessing::MakeSocketReuseable(int fd) {
     int on = 1;
-    if (setsockopt(fd, SQL_socket, SO_REUSEADDR, (char*)&on, sizeof(on)) < 0) {
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (char*)&on, sizeof(on)) < 0) {
         perror("ERROR: Couldnt make socket reuseable ");
         exit(EXIT_FAILURE);
     }
@@ -60,7 +59,7 @@ void net_protocol::NetProcessing::Connect(int socket, const sockaddr* address,
 void net_protocol::NetProcessing::IPConverter(int af, const char* src, void* dst) {
     int result = inet_pton(af, src, dst);
     if (result == 0) {
-        printef("inet_pton failed: src does not contain a character"
+        printf("inet_pton failed: src does not contain a character"
         " string representing a valid network address in the specified"
         " address family\n");
         exit(EXIT_FAILURE);
@@ -88,7 +87,7 @@ std::pair<int, bool> net_protocol::NetProcessing::Write(int fidles, const char* 
     return {status, close_connection};
 }
 
-std::pair<int, bool> net_protocol::NetProcessing::Read(int fidles, const char* buf,
+std::pair<int, bool> net_protocol::NetProcessing::Read(int fidles, char* buf,
                                                         size_t nbyte) {
     bool close_connection = false;
     int status = read(fidles, buf, nbyte);
