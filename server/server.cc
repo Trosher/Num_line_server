@@ -9,27 +9,25 @@ net_protocol::Server::Server()
 void net_protocol::Server::InitListenPorts() {
     int listening = -1;
     int i = 0;
-    int lp[] = {80, 8000, 81};
-    listening_ports.assign(std::begin(lp), std::end(lp));
-    for (auto it : listening_ports) {
-        listening = net_protocol::NetProcessing::Socket(AF_INET, SOCK_STREAM, 0);
-        net_protocol::NetProcessing::MakeSocketReuseable(listening);
-        net_protocol::NetProcessing::SetNonBlockingSocket(listening);
-        auto addr = net_protocol::NetProcessing::InifAddr(it);
-        net_protocol::NetProcessing::Bind(listening, (sockaddr*)&addr, sizeof(addr));
-        net_protocol::NetProcessing::Listen(listening, 10);
-        m_fds_[i].fd = listening;
-        m_fds_[i++].events = POLL_IN;
-        m_fds_counter_++;
-    }
+    listening_ports = SERVER_PORT;
+    listening = net_protocol::NetProcessing::Socket(AF_INET, SOCK_STREAM, 0);
+    net_protocol::NetProcessing::MakeSocketReuseable(listening);
+    net_protocol::NetProcessing::SetNonBlockingSocket(listening);
+    addr_size = net_protocol::NetProcessing::InifAddr(listening_ports);
+    net_protocol::NetProcessing::Bind(listening, (struct sockaddr*)&addr_size, sizeof(addr_size));
+    net_protocol::NetProcessing::Listen(listening, 10);
+    m_fds_[0].fd = listening;
+    m_fds_[0].events = POLL_IN;
+    m_fds_counter_++;
 }
 
 net_protocol::Server::~Server() {
-    for (size_t i = 0; i < listening_ports.size(); ++i)
+    for (size_t i = 0; i < m_fds_counter_; ++i)
         close(m_fds_[i].fd);
 }
 
 void net_protocol::Server::EventProcessing() {
+    recv(newSocket, &buf, sizeof(buf), 0);
     
 }
 
@@ -51,7 +49,7 @@ void net_protocol::Server::HandlingCycle() {
     do {
         // Установка времени ожидания запроса в бесконечный режим
         status = poll(m_fds_, m_fds_counter_, -1);
-        std::cout << "poll poimal event\n";
+        std::cout << "poll primal event\n";
         if (status < 0) {
             perror("ERROR: Poll fails while waiting for the request ");
             break;

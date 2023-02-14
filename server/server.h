@@ -12,6 +12,7 @@
 #include "../NetProcessing/NetProcessing.h" // Оебртка стандартных методов
 
 bool m_shutdown_server_ = false;
+constexpr int SERVER_PORT = 8080;
 
 namespace net_protocol {
     class Server {
@@ -64,12 +65,18 @@ namespace net_protocol {
             // Инициализация и настройка порта для подключения
             void InitListenPorts();
 
+            // Буфер клиента
+            char buf[BUFF_SIZE];
             // Список отслеживаемых файловых дискрипторов
             pollfd m_fds_[7]{};
             // Счетчик количества отслеживаемых файловых дискрипторов
             int m_fds_counter_;
-            // Вектор портов
-            std::vector<int> listening_ports;
+            // Битовая длина адресса
+            auto addr_size;
+            // Серверный сокет
+            int serverSocket;
+            // Добавляемый сокет
+            int NewSocket;
             // Флаг на ужатие массива файловых дискрипторов
             bool m_compress_arr_;
 
