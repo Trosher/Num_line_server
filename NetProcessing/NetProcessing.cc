@@ -18,7 +18,7 @@ void net_protocol::NetProcessing::Bind(int sockfd, const sockaddr* addr,
     }
 }
 
-sockaddr_in net_protocol::NetProcessing::InifAddr(int port) {
+sockaddr_in net_protocol::NetProcessing::IninAddr(int port) {
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);

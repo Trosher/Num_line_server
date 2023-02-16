@@ -10,7 +10,8 @@
 #include <queue> // Реализация очереди
 #include <thread> // Библиотека для работы с потоками
 
-#include "../NetProcessing/NetProcessing.h" // Оебртка стандартных методов
+#include "../NetProcessing/NetProcessing.h" // Оебртка стандартных методов для работы с сетью
+#include "../RequsetHandler/RequsetHandler.h" // Обработка запросов клиента
 
 bool m_shutdown_server_ = false;
 constexpr int SERVER_PORT = 80;
@@ -30,7 +31,7 @@ namespace net_protocol {
             */
             Server();
 
-            // Диструктор класса сервер
+            // Диструктор класса сервр
             ~Server();
 
             /*
@@ -59,10 +60,20 @@ namespace net_protocol {
                 Incoming:
                     fd - дискриптор клиента
             */
-            void EventProcessing(int fd);
+            void RequestProcessing(int fd);
 
-            // Создание потока под EventProcessing
-            void CreatingStreamForEventProcessing();
+            /*
+                * Генерирует числа для клиента и отправляет их
+
+                Incoming:
+                    seq - Масив заданных параметров
+
+                    fd - Дискриптор клиента
+            */
+            void GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> &seq, int fd);
+
+            // Создание потока под RequestProcessing
+            void CreatingStreamForRequestProcessing();
 
             // Инициализация и настройка порта для подключения
             void InitListenPorts();
@@ -76,8 +87,6 @@ namespace net_protocol {
             pollfd m_fds_[1]{};
             // Счетчик количества отслеживаемых файловых дискрипторов
             int m_fds_counter_;
-            // Битовая длина адресса
-            auto addr_size;
 
     }; // class Server
 } // namespace net_protocol
