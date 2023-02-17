@@ -43,21 +43,22 @@ void Client::processing() {
     while (true) {
         getline(std::cin, requestBuff);
         if (regexec(&m_seqRegex, requestBuff.c_str(), 0, nullptr, 0) == 0) {
-            m_request.push_back(std::move(requestBuff));
+            net_protocol::NetProcessing::Write(m_sockFd, requestBuff.c_str(), requestBuff.size());
+            //m_request.push_back(std::move(requestBuff));
         } else if (regexec(&m_exportSeqRegex, requestBuff.c_str(), 0, nullptr, 0) == 0) {
-            if (m_request.size() == 3) {
-                std::cout << "\nAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n";
-                net_protocol::NetProcessing::Write(m_sockFd, getRequest().c_str(), getRequestMessageLength());
+            net_protocol::NetProcessing::Write(m_sockFd, requestBuff.c_str(), requestBuff.size());
+            // if (m_request.size() == 3) {
+            //     net_protocol::NetProcessing::Write(m_sockFd, getRequest().c_str(), getRequestMessageLength());
                 while (true) {
                     read(m_sockFd, &responseBuff, BUFF_SIZE);
                     // можно добавить обработку, что если пришел пустой пакет, делаем дисконнект
                     // (read возвращает число вычитанных из фдшника байт)
                     std::cout << responseBuff << std::endl;
                 }
-            } else {
-                std::cout << "Error: Incorrect request!" << std::endl;
-                exit(EXIT_FAILURE);
-            }
+            // } else {
+            //     std::cout << "Error: Incorrect request!" << std::endl;
+            //     exit(EXIT_FAILURE);
+            // }
         } else {
             std::cout << "Error: Incorrect command!" << std::endl;
         }

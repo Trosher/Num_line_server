@@ -45,7 +45,7 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
             Answer += "  ";
         }
         if (seq3.first != 0) {
-            Answer += std::to_string(seq3_buf);
+            Answer += std::to_string(seq3_buf) + '\n';
         }
         StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer.c_str(), Answer.length());
         seq1_buf += seq1.second;
@@ -60,6 +60,7 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
         if (seq3_buf > ULONG_MAX) {
             seq3_buf -= ULONG_MAX;
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     } while (!StateMonitoring.second && !m_shutdown_server_);
 }
 
@@ -95,7 +96,7 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
                     GeneratingNumbersToClient(seq1, seq2, seq3, fd);
                     break;
                 }
-            } 
+            }
             if (RequestIdentifier == ERROR_R) {
                 char Answer[] = "WARNING: The request was made incorrectly ";
                 StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
@@ -107,11 +108,11 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
 }
 
 void net_protocol::Server::CreatingStreamForRequestProcessing(int fd) {
-    // std::thread stream([&]()
-    // {
+    std::thread stream([&]()
+    {
         net_protocol::Server::RequestProcessing(fd, std::ref(m_fds_counter_));
-    // });
-    // stream.detach();
+    });
+    stream.detach();
 }
 
 void net_protocol::Server::AddNewUser() {
