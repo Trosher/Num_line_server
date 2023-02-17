@@ -14,7 +14,7 @@
 #include "../RequsetHandler/RequsetHandler.h" // Обработка запросов клиента
 
 bool m_shutdown_server_ = false;
-constexpr int SERVER_PORT = 80;
+constexpr int SERVER_PORT = 85;
 
 namespace net_protocol {
     class Server {
@@ -60,20 +60,23 @@ namespace net_protocol {
                 Incoming:
                     fd - дискриптор клиента
             */
-            void RequestProcessing(int fd);
+            void RequestProcessing(int fd, int &m_fds_counter_);
 
             /*
                 * Генерирует числа для клиента и отправляет их
 
                 Incoming:
-                    seq - Масив заданных параметров
+                    seq* - Праметры команд клиента
 
                     fd - Дискриптор клиента
             */
-            void GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> &seq, int fd);
+            void GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> seq1, 
+                                            std::pair<unsigned long int, unsigned long int> seq2,
+                                            std::pair<unsigned long int, unsigned long int> seq3,
+                                            int fd);
 
             // Создание потока под RequestProcessing
-            void CreatingStreamForRequestProcessing();
+            void CreatingStreamForRequestProcessing(int fd);
 
             // Инициализация и настройка порта для подключения
             void InitListenPorts();

@@ -24,81 +24,94 @@ net_protocol::Server::~Server() {
     close(m_fds_[0].fd);
 }
 
-void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> &seq, int fd) {
-    unsigned long long int seq1 = seq[0].first, seq2 = seq[1].first, seq3 = seq[2].first;
+void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> seq1, 
+                                                    std::pair<unsigned long int, unsigned long int> seq2,
+                                                    std::pair<unsigned long int, unsigned long int> seq3,
+                                                    int fd) {
+    unsigned long long int seq1_buf = seq1.first;
+    unsigned long long int seq2_buf = seq2.first; 
+    unsigned long long int seq3_buf = seq3.first;
+    std::pair<int, bool> StateMonitoring;
     do {
-        if (seq1 != 0) {
-            std::string Answer = std::to_string(seq1) + " ";
+        std::string Answer;
+        if (seq1.first != 0) {
+            Answer = std::to_string(seq1_buf) + " ";
         } else {
-            std::string Answer =  "  ";
+            Answer =  "  ";
         }
-        if (seq2 != 0) {
-            Answer += std::to_string(seq2) + " ";
+        if (seq2.first != 0) {
+            Answer += std::to_string(seq2_buf) + " ";
         } else {
             Answer += "  ";
         }
-        if (seq3 != 0) {
-            Answer += std::to_string(seq3)
+        if (seq3.first != 0) {
+            Answer += std::to_string(seq3_buf);
         }
-        StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, Answer.length());
-        seq1 += seq[0].second;
-        seq2 += seq[1].second;
-        seq3 += seq[2].second;
-        if (seq1 > ULONG_MAX) {
-            seq1 -= ULONG_MAX;
+        StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer.c_str(), Answer.length());
+        seq1_buf += seq1.second;
+        seq2_buf += seq2.second;
+        seq3_buf += seq3.second;
+        if (seq1_buf > ULONG_MAX) {
+            seq1_buf -= ULONG_MAX;
         }
-        if (seq2 > ULONG_MAX) {
-            seq2 -= ULONG_MAX;
+        if (seq2_buf > ULONG_MAX) {
+            seq2_buf -= ULONG_MAX;
         }
-        if (seq3 > ULONG_MAX) {
-            seq3 -= ULONG_MAX;
+        if (seq3_buf > ULONG_MAX) {
+            seq3_buf -= ULONG_MAX;
         }
-    } while (!StateMonitoring.second);
+    } while (!StateMonitoring.second && !m_shutdown_server_);
 }
 
 void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
-    std::pair<unsigned long int, unsigned long int> seq[3];
+    std::pair<unsigned long int, unsigned long int> seq1(0, 0); 
+    std::pair<unsigned long int, unsigned long int> seq2(0, 0);
+    std::pair<unsigned long int, unsigned long int> seq3(0, 0);
+    std::pair<int, bool> StateMonitoring;
     char buf[BUFF_SIZE]{};
     do {
-        auto StateMonitoring = net_protocol::NetProcessing::Read(fd, buf, BUFF_SIZE);
+        StateMonitoring = net_protocol::NetProcessing::Read(fd, buf, BUFF_SIZE);
         if (StateMonitoring.first > 0) {
-            Request RequestIdentifier = net_protocol::RequsetHandler::DefinitionRequest(buf);
+            Requests RequestIdentifier = net_protocol::RequsetHandler::DefinitionRequest(buf);
             if (RequestIdentifier != EXPORTSEQ || RequestIdentifier != ERROR_R) {
                 if (net_protocol::RequsetHandler::CheckingValidityParamRequest(buf) < 0) {
-                    char Answer[] = "WARNING: The request was made incorrectly.\nUse parameters with a lower value than ULONG_MAX "
-                    StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, std::len(Answer));
+                    char Answer[] = "WARNING: The request was made incorrectly.\nUse parameters with a lower value than ULONG_MAX ";
+                    StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
                 } else {
                     if (RequestIdentifier == SEQ1) {
-                        seq[0] = net_protocol::RequsetHandler::GetParamRequest(buf);
+                        seq1 = net_protocol::RequsetHandler::GetParamRequest(buf);
                     } else if (RequestIdentifier == SEQ2) {
-                        seq[1] = net_protocol::RequsetHandler::GetParamRequest(buf);
+                        seq2 = net_protocol::RequsetHandler::GetParamRequest(buf);
                     } else if (RequestIdentifier == SEQ3) {
-                        seq[2] = net_protocol::RequsetHandler::GetParamRequest(buf);
+                        seq3 = net_protocol::RequsetHandler::GetParamRequest(buf);
                     }
                 }
             } 
             if (RequestIdentifier == EXPORTSEQ) {
-                if (net_protocol::RequsetHandler::CheckingConnectionRequests(seq) < 0) {
-                    char Answer[] = "WARNING: The request was made incorrectly.\n More than one seq has not been set with the correct parameters,\nnumber generation is impossible "
-                    StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, std::len(Answer));
+                if (net_protocol::RequsetHandler::CheckingValidityParamSaved(seq1, seq2, seq3) < 0) {
+                    char Answer[] = "WARNING: The request was made incorrectly.\n More than one seq has not been set with the correct parameters,\nnumber generation is impossible ";
+                    StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
                 } else {
-                    GeneratingNumbersToClient(seq);
+                    GeneratingNumbersToClient(seq1, seq2, seq3, fd);
                     break;
                 }
             } 
             if (RequestIdentifier == ERROR_R) {
-                char Answer[] = "WARNING: The request was made incorrectly "
-                StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, std::len(Answer));
+                char Answer[] = "WARNING: The request was made incorrectly ";
+                StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
             }
         }
-    } while (!StateMonitoring.second);
+    } while (!StateMonitoring.second && !m_shutdown_server_);
     close(fd);
     m_fds_counter_ -= 1;
 }
 
 void net_protocol::Server::CreatingStreamForRequestProcessing(int fd) {
-    std::thread stream(RequestProcessing, fd, std::ref(m_fds_counter_));
-    stream.detach();
+    // std::thread stream([&]()
+    // {
+        net_protocol::Server::RequestProcessing(fd, std::ref(m_fds_counter_));
+    // });
+    // stream.detach();
 }
 
 void net_protocol::Server::AddNewUser() {
@@ -147,13 +160,9 @@ void net_protocol::Server::SigHandler(int signum) {
     m_shutdown_server_ = true;
 }
 
-int main(int argc, char** argv) {
-    if (argc == 1) {
-        signal(SIGINT, net_protocol::Server::SigHandler);
-        net_protocol::Server server;
-        server.HandlingCycle();
-    } else {
-        std::cout << "The server does not accept parameters at startup.\n";
-    }
+int main() {
+    signal(SIGINT, net_protocol::Server::SigHandler);
+    net_protocol::Server server;
+    server.CheckingConnectionRequests();
     return 0;
 }

@@ -1,5 +1,5 @@
-#ifndef RQUESTPARSER_RQUESTHANDLER_H_
-#define RQUESTPARSER_RQUESTHANDLER_H_
+#ifndef RQUESTHANDLER_RQUESTHANDLER_H_
+#define RQUESTHANDLER_RQUESTHANDLER_H_
 
 #include <stdio.h> // Либа операция стандартного ввода и вывода
 #include <stdlib.h> // Либа для работы с памятью, преобразованием типов и т.п.
@@ -28,7 +28,7 @@ namespace net_protocol {
                 Return:
                     * Если запрос не удалось определить возращает ERROR_R 
             */
-            static Requests DefinitionRequest(char &buf);
+            static Requests DefinitionRequest(const char *buf);
 
             /*
                 * Забирает параметры запросов seq1, seq2 , seq3
@@ -39,7 +39,7 @@ namespace net_protocol {
                 Return:
                     * Пара параметорв из запроса
             */
-            static std::pair<int, int> GetParamRequest(char &buf);
+            static std::pair<unsigned long int, unsigned long int> GetParamRequest(const char *buf);
 
             /*
                 * Проверяет валидность параметров полученого запроса
@@ -50,21 +50,23 @@ namespace net_protocol {
                 Return:
                     * Если параметры запроса были невалидны возращает -1, иначе 0
             */
-            static int CheckingValidityParamRequest(char &buf);
+            static int CheckingValidityParamRequest(const char *buf);
 
             /*
                 * Проверяет возможность отправки ответа клиенту 
                 по сохранённым параметрам
                 
                 Incoming:
-                    seq - Масив сохранёных параметров
+                    seq* - Параметры команд клиента
 
                 Return:
                     * Если параметры запроса были невалидны возращает -1, иначе 0
             */
-            static int CheckingValidityParamSaved(std::pair<unsigned long int, unsigned long int> &seq);
+            static int CheckingValidityParamSaved(std::pair<unsigned long int, unsigned long int> seq1, 
+                                                std::pair<unsigned long int, unsigned long int> seq2,
+                                                std::pair<unsigned long int, unsigned long int> seq3);
 
     }; // class RequsetHandler
 } // namespace net_protocol
 
-#endif // RQUESTPARSER_RQUESTHANDLER_H_
+#endif // RQUESTHANDLER_RQUESTHANDLER_H_
