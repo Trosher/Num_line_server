@@ -37,22 +37,23 @@ namespace net_protocol {
             ~Server();
 
             /*
-                * Функция обработки сигнала Ctrl + C
-
-                Incoming:
-                    signum - входной сигнал
-            */ 
-            static void SigHandler(int signum);
-            
-            /*
                 * Функция проверки наличия новых подключений
 
                 * Основной метод, вызывающий poll()
             */ 
             void CheckingConnectionRequests();
 
-        private:
+            /*
+                * Функция обработки сигнала Ctrl + C
 
+                Incoming:
+                    signum - входной сигнал
+            */ 
+            static void SigHandler(int signum);
+
+
+        private:   
+            
             /*
                 * Обрабатывает события конкретного клиента
 
@@ -86,11 +87,16 @@ namespace net_protocol {
             // Функция добавления нового юзера
             void AddNewUser();
 
-            // Буфер клиента
+            // Удаление дискриптора клиента из списка дискрипторв
+            void CompressArray();
+
+            // Масив дескрипторов клиента
+            pollfd m_cfds_[5]{};
+            // Буфер запросов клиента
             char buf[BUFF_SIZE];
-            // Список отслеживаемых файловых дискрипторов
+            // Слушающий дискриптор
             pollfd m_fds_[1]{};
-            // Счетчик количества отслеживаемых файловых дискрипторов
+            // Счетчик количества отслеживаемых дискрипторов
             int m_fds_counter_;
 
     }; // class Server

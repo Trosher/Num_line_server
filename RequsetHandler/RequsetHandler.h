@@ -65,6 +65,19 @@ namespace net_protocol {
             static int CheckingValidityParamSaved(std::pair<unsigned long int, unsigned long int> seq1, 
                                                 std::pair<unsigned long int, unsigned long int> seq2,
                                                 std::pair<unsigned long int, unsigned long int> seq3);
+            
+        private:
+            /*
+                * Переводит строку чара в число
+                
+                Incoming:
+                    buf - Указатель на позицию где начинается нужное число в строке
+
+                Return:
+                    * Число образованое из строки
+            */
+            static unsigned long int CharStrToNum(const char *buf);
+
 
     }; // class RequsetHandler
 } // namespace net_protocol

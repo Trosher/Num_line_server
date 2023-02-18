@@ -39,30 +39,25 @@ int Client::init(const std::string& ip, int port) {
 
 void Client::processing() {
     std::string requestBuff;
-    char responseBuff[BUFF_SIZE];
-    while (true) {
+    std::pair<int, bool> StateMonitoring;
+    do {
         getline(std::cin, requestBuff);
         if (regexec(&m_seqRegex, requestBuff.c_str(), 0, nullptr, 0) == 0) {
-            net_protocol::NetProcessing::Write(m_sockFd, requestBuff.c_str(), requestBuff.size());
-            //m_request.push_back(std::move(requestBuff));
+            StateMonitoring = net_protocol::NetProcessing::Write(m_sockFd, requestBuff.c_str(), requestBuff.size());
         } else if (regexec(&m_exportSeqRegex, requestBuff.c_str(), 0, nullptr, 0) == 0) {
-            net_protocol::NetProcessing::Write(m_sockFd, requestBuff.c_str(), requestBuff.size());
-            // if (m_request.size() == 3) {
-            //     net_protocol::NetProcessing::Write(m_sockFd, getRequest().c_str(), getRequestMessageLength());
-                while (true) {
-                    read(m_sockFd, &responseBuff, BUFF_SIZE);
-                    // можно добавить обработку, что если пришел пустой пакет, делаем дисконнект
-                    // (read возвращает число вычитанных из фдшника байт)
+            StateMonitoring = net_protocol::NetProcessing::Write(m_sockFd, requestBuff.c_str(), requestBuff.size());
+                while (!StateMonitoring.second) {
+                    char responseBuff[BUFF_SIZE]{};
+                    StateMonitoring = net_protocol::NetProcessing::Read(m_sockFd, responseBuff, BUFF_SIZE);
                     std::cout << responseBuff << std::endl;
+                    if (responseBuff[0] == 'W') {
+                        break;
+                    }
                 }
-            // } else {
-            //     std::cout << "Error: Incorrect request!" << std::endl;
-            //     exit(EXIT_FAILURE);
-            // }
         } else {
             std::cout << "Error: Incorrect command!" << std::endl;
         }
-    }
+    } while (!StateMonitoring.second);
 }
 
 std::string Client::getRequest() {

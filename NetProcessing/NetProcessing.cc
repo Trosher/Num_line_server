@@ -18,7 +18,7 @@ void net_protocol::NetProcessing::Bind(int sockfd, const sockaddr* addr,
     }
 }
 
-sockaddr_in net_protocol::NetProcessing::IninAddr(int port) {
+sockaddr_in net_protocol::NetProcessing::InintAddr(int port) {
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
@@ -93,6 +93,10 @@ std::pair<int, bool> net_protocol::NetProcessing::Read(int fidles, char* buf,
     int status = read(fidles, buf, nbyte);
     if (status < 0) {
         perror("ERROR: Couldnt read message from FD ");
+        close_connection = true;
+    }
+    if (status == 0) {
+        perror("ERROR: Connection closed ");
         close_connection = true;
     }
     return {status, close_connection};

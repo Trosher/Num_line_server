@@ -12,7 +12,7 @@ void net_protocol::Server::InitListenPorts() {
     listening = net_protocol::NetProcessing::Socket(AF_INET, SOCK_STREAM, 0);
     net_protocol::NetProcessing::MakeSocketReuseable(listening);
     net_protocol::NetProcessing::SetNonBlockingSocket(listening);
-    auto addr_size = net_protocol::NetProcessing::IninAddr(listening_ports);
+    auto addr_size = net_protocol::NetProcessing::InintAddr(listening_ports);
     net_protocol::NetProcessing::Bind(listening, (struct sockaddr*)&addr_size, sizeof(addr_size));
     net_protocol::NetProcessing::Listen(listening, 10);
     m_fds_[0].fd = listening;
@@ -21,7 +21,23 @@ void net_protocol::Server::InitListenPorts() {
 }
 
 net_protocol::Server::~Server() {
+    for (int i = 0; i < m_fds_counter_ - 1; i++) {
+        close(m_cfds_[0].fd);
+    }
     close(m_fds_[0].fd);
+}
+
+void net_protocol::Server::CompressArray() {
+  for (int i = 0; i < m_fds_counter_ - 1; ++i) {
+    if (m_cfds_[i].fd == -1) {
+      for (int j = i; j < m_fds_counter_; ++j) {
+        m_cfds_[j].fd = m_cfds_[j + 1].fd;
+      }
+      i -= 1;
+      m_fds_counter_ -= 1;
+    }
+  }
+  m_fds_counter_ -= 1;
 }
 
 void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> seq1, 
@@ -29,7 +45,7 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
                                                     std::pair<unsigned long int, unsigned long int> seq3,
                                                     int fd) {
     unsigned long long int seq1_buf = seq1.first;
-    unsigned long long int seq2_buf = seq2.first; 
+    unsigned long long int seq2_buf = seq2.first;
     unsigned long long int seq3_buf = seq3.first;
     std::pair<int, bool> StateMonitoring;
     do {
@@ -52,13 +68,13 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
         seq2_buf += seq2.second;
         seq3_buf += seq3.second;
         if (seq1_buf > ULONG_MAX) {
-            seq1_buf -= ULONG_MAX;
+            seq1_buf = seq1_buf - ULONG_MAX;
         }
         if (seq2_buf > ULONG_MAX) {
-            seq2_buf -= ULONG_MAX;
+            seq2_buf = seq2_buf - ULONG_MAX;
         }
         if (seq3_buf > ULONG_MAX) {
-            seq3_buf -= ULONG_MAX;
+            seq3_buf = seq3_buf - ULONG_MAX;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     } while (!StateMonitoring.second && !m_shutdown_server_);
@@ -69,8 +85,8 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
     std::pair<unsigned long int, unsigned long int> seq2(0, 0);
     std::pair<unsigned long int, unsigned long int> seq3(0, 0);
     std::pair<int, bool> StateMonitoring;
-    char buf[BUFF_SIZE]{};
     do {
+        char buf[BUFF_SIZE]{};
         StateMonitoring = net_protocol::NetProcessing::Read(fd, buf, BUFF_SIZE);
         if (StateMonitoring.first > 0) {
             Requests RequestIdentifier = net_protocol::RequsetHandler::DefinitionRequest(buf);
@@ -90,7 +106,7 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
             } 
             if (RequestIdentifier == EXPORTSEQ) {
                 if (net_protocol::RequsetHandler::CheckingValidityParamSaved(seq1, seq2, seq3) < 0) {
-                    char Answer[] = "WARNING: The request was made incorrectly.\n More than one seq has not been set with the correct parameters,\nnumber generation is impossible ";
+                    char Answer[] = "WARNING: The request was made incorrectly.\nMore than one seq has not been set with the correct parameters,\nnumber generation is impossible ";
                     StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
                 } else {
                     GeneratingNumbersToClient(seq1, seq2, seq3, fd);
@@ -104,7 +120,7 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
         }
     } while (!StateMonitoring.second && !m_shutdown_server_);
     close(fd);
-    m_fds_counter_ -= 1;
+    CompressArray();
 }
 
 void net_protocol::Server::CreatingStreamForRequestProcessing(int fd) {
@@ -119,11 +135,12 @@ void net_protocol::Server::AddNewUser() {
     int new_fd = 0;
     std::cout << "\nGot the request to add new user\n";
     do {
-        if (m_fds_counter_ >= 5) {
+        if (m_fds_counter_ > 5) {
             perror("WARING: The maximum number of connections to the server has been reached ");
             break;
-        } 
-        new_fd = accept(m_fds_[0].fd, NULL, NULL);
+        } else {
+            new_fd = accept(m_fds_[0].fd, NULL, NULL);
+        }
         if (new_fd < 0) {
             if (errno != EWOULDBLOCK) {
                 perror("ERROR: Accept failed ");
@@ -132,6 +149,7 @@ void net_protocol::Server::AddNewUser() {
             break;
         }
         if (new_fd != -1) {
+            m_cfds_[m_fds_counter_ - 1].fd = new_fd;
             m_fds_counter_ += 1;
             CreatingStreamForRequestProcessing(new_fd);
         }

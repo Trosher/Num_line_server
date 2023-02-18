@@ -65,7 +65,7 @@ namespace net_protocol {
                     возвращает структуру sockaddr_in, заполненную новыми данными
 
             */
-            static sockaddr_in IninAddr(int port);
+            static sockaddr_in InintAddr(int port);
 
             /*
                 * Указывает на готовность принимать клиентские запросы на подключение 

@@ -18,13 +18,13 @@ Requests net_protocol::RequsetHandler::DefinitionRequest(const char *buf) {
 
 std::pair<unsigned long int, unsigned long int> net_protocol::RequsetHandler::GetParamRequest(const char *buf) {
     unsigned long int FirstParam, SecondParam;
-    int i = 6;
-    FirstParam = atoi(buf + i);
+    int i = 5;
+    FirstParam = CharStrToNum(buf + i);
     while (buf[i] >= '0' && buf[i] <= '9') {
         i += 1;
     }
     i += 1;
-    SecondParam = atoi(buf + i);
+    SecondParam = CharStrToNum(buf + i);
     if (FirstParam == 0 || SecondParam == 0) {
         FirstParam = 0;
         SecondParam = 0;
@@ -47,6 +47,16 @@ int net_protocol::RequsetHandler::CheckingValidityParamSaved(std::pair<unsigned 
     int res = 0;
     if (seq1.first == 0 && seq2.first == 0 && seq3.first == 0) {
         res = -1;
+    }
+    return res;
+}
+
+unsigned long int net_protocol::RequsetHandler::CharStrToNum(const char *buf) {
+    int i = 0;
+    unsigned long int res = 0;
+    while (buf[i] >= '0' && buf[i] <= '9') {
+        res = res * 10 + (buf[i] - '0');
+        i += 1;
     }
     return res;
 }
