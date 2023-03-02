@@ -1,6 +1,7 @@
 #ifndef SERVER_SERVER_H_
 #define SERVER_SERVER_H_
 
+#include <mutex> // Библиотека для создания безопсной зоны потока
 #include <algorithm> //набор функций для выполнения алгоритмических операций 
                     //над контейнерами и над другими последовательностями
 #include <vector> // Реализация динамического массива
@@ -16,7 +17,11 @@
 #include <chrono> // Либа для засыпания программы
 
 bool m_shutdown_server_ = false;
-constexpr int SERVER_PORT = 85;
+constexpr int SERVER_PORT = 87;
+const char* HELLO_CLIENT = "Hello! You got it! \n";
+const char* ERROR_REG = "ERROR: It was not possible to generate regular expressions for the client's request.\n Connection interrupted \n";
+const char* INCORECT_REQUEST_NON_SEQ = "WARNING: The request was made incorrectly.\nMore than one seq has not been set with the correct parameters,\nnumber generation is impossible \n";
+const char* INCORECT_REQUEST = "WARNING: The request was incorrect \n";
 
 namespace net_protocol {
     class Server {
@@ -52,7 +57,7 @@ namespace net_protocol {
             static void SigHandler(int signum);
 
 
-        private:   
+        private:
             
             /*
                 * Обрабатывает события конкретного клиента
@@ -63,7 +68,7 @@ namespace net_protocol {
                 Incoming:
                     fd - дискриптор клиента
             */
-            void RequestProcessing(int fd, int &m_fds_counter_);
+            void RequestProcessing(int fd);
 
             /*
                 * Генерирует числа для клиента и отправляет их
@@ -98,6 +103,8 @@ namespace net_protocol {
             pollfd m_fds_[1]{};
             // Счетчик количества отслеживаемых дискрипторов
             int m_fds_counter_;
+            // Объявление мютекса
+            std::mutex mutex_;
 
     }; // class Server
 } // namespace net_protocol

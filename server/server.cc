@@ -7,7 +7,6 @@ net_protocol::Server::Server()
 
 void net_protocol::Server::InitListenPorts() {
     int listening = -1;
-    int i = 0;
     auto listening_ports = SERVER_PORT;
     listening = net_protocol::NetProcessing::Socket(AF_INET, SOCK_STREAM, 0);
     net_protocol::NetProcessing::MakeSocketReuseable(listening);
@@ -21,23 +20,27 @@ void net_protocol::Server::InitListenPorts() {
 }
 
 net_protocol::Server::~Server() {
+    mutex_.lock();
     for (int i = 0; i < m_fds_counter_ - 1; i++) {
         close(m_cfds_[0].fd);
     }
+    mutex_.unlock();
     close(m_fds_[0].fd);
 }
 
 void net_protocol::Server::CompressArray() {
-  for (int i = 0; i < m_fds_counter_ - 1; ++i) {
-    if (m_cfds_[i].fd == -1) {
-      for (int j = i; j < m_fds_counter_; ++j) {
-        m_cfds_[j].fd = m_cfds_[j + 1].fd;
-      }
-      i -= 1;
-      m_fds_counter_ -= 1;
+    mutex_.lock();
+    for (int i = 0; i < m_fds_counter_ - 1; ++i) {
+        if (m_cfds_[i].fd == -1) {
+            for (int j = i; j < m_fds_counter_; ++j) {
+                m_cfds_[j].fd = m_cfds_[j + 1].fd;
+            }
+            i -= 1;
+            m_fds_counter_ -= 1;
+        }
     }
-  }
-  m_fds_counter_ -= 1;
+    m_fds_counter_ -= 1;
+    mutex_.unlock();
 }
 
 void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int, unsigned long int> seq1, 
@@ -82,19 +85,19 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
     } while (!StateMonitoring.second && !m_shutdown_server_);
 }
 
-void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
+void net_protocol::Server::RequestProcessing(int fd) {
     std::pair<unsigned long int, unsigned long int> seq1(0, 0); 
     std::pair<unsigned long int, unsigned long int> seq2(0, 0);
     std::pair<unsigned long int, unsigned long int> seq3(0, 0);
     std::pair<int, bool> StateMonitoring;
+    StateMonitoring = net_protocol::NetProcessing::Write(fd, HELLO_CLIENT, strlen(HELLO_CLIENT));
     do {
         char buf[BUFF_SIZE]{};
         StateMonitoring = net_protocol::NetProcessing::Read(fd, buf, BUFF_SIZE);
         try {
             if (StateMonitoring.first > 0) {
                 if (net_protocol::RequsetHandler::CheckingValidityParamRequest(buf) < 0) {
-                        char Answer[] = "WARNING: The request was incorrectly \n";
-                        StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+                        StateMonitoring = net_protocol::NetProcessing::Write(fd, INCORECT_REQUEST, strlen(INCORECT_REQUEST));
                 } else {
                     Requests RequestIdentifier = net_protocol::RequsetHandler::DefinitionRequest(buf);
                     if (RequestIdentifier != EXPORTSEQ && RequestIdentifier != ERROR_R) {
@@ -107,21 +110,18 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
                         }
                     } else if (RequestIdentifier == EXPORTSEQ) {
                         if (net_protocol::RequsetHandler::CheckingValidityParamSaved(seq1, seq2, seq3) < 0) {
-                            char Answer[] = "WARNING: The request was made incorrectly.\nMore than one seq has not been set with the correct parameters,\nnumber generation is impossible \n";
-                            StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+                            StateMonitoring = net_protocol::NetProcessing::Write(fd, INCORECT_REQUEST_NON_SEQ, strlen(INCORECT_REQUEST_NON_SEQ));
                         } else {
                             GeneratingNumbersToClient(seq1, seq2, seq3, fd);
                             break;
                         }
                     } else if (RequestIdentifier == ERROR_R) {
-                        char Answer[] = "WARNING: The request was made incorrectly \n";
-                        StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+                        StateMonitoring = net_protocol::NetProcessing::Write(fd, INCORECT_REQUEST, strlen(INCORECT_REQUEST));
                     }
                 }             
             }
         } catch (const std::runtime_error& err) {
-            char Answer[] = "ERROR: It was not possible to generate regular expressions for the client's request.\n Connection interrupted \n";
-            StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+            StateMonitoring = net_protocol::NetProcessing::Write(fd, ERROR_REG, strlen(ERROR_REG));
             break;
         }
     } while (!StateMonitoring.second && !m_shutdown_server_);
@@ -132,7 +132,7 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
 void net_protocol::Server::CreatingStreamForRequestProcessing(int fd) {
     std::thread stream([&]()
     {
-        net_protocol::Server::RequestProcessing(fd, std::ref(m_fds_counter_));
+        net_protocol::Server::RequestProcessing(fd);
     });
     stream.detach();
 }
@@ -165,8 +165,8 @@ void net_protocol::Server::AddNewUser() {
 void net_protocol::Server::CheckingConnectionRequests() {
     int status = 0;
     do {
-        status = poll(m_fds_, 1, -1);
         std::cout << "poll primal event\n";
+        status = poll(m_fds_, 1, -1);
         if (status < 0) {
             perror("ERROR: Poll fails while waiting for the request \n");
             break;
@@ -179,13 +179,19 @@ void net_protocol::Server::CheckingConnectionRequests() {
 }
 
 void net_protocol::Server::SigHandler(int signum) {
-    std::cout << "\nSig exit" << std::endl;
-    (void)signum;
-    m_shutdown_server_ = true;
+    if (signum == SIGINT) {
+        std::cout << "\nSig exit" << std::endl;
+        m_shutdown_server_ = true;
+    } else if (signum == SIGTSTP) {
+        std::cout << "\nDon't use this to shut down the server: Ctrl+Z" << std::endl;
+        m_shutdown_server_ = true;
+    }    
 }
 
 int main() {
+    std::cout << "If you want to stop the server use this: Ctrt+C" << std::endl;
     signal(SIGINT, net_protocol::Server::SigHandler);
+    signal(SIGTSTP, net_protocol::Server::SigHandler);
     net_protocol::Server server;
     server.CheckingConnectionRequests();
     return 0;
