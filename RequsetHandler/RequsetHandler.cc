@@ -1,5 +1,22 @@
 #include "RequsetHandler.h"
 
+void net_protocol::RequsetHandler::compileRegexes(regex_t& m_seqRegex, regex_t& m_exportSeqRegex) {
+    char errBuff[255]{};
+    const std::string kSEQREGXPATTERN = "^(seq)([1-3]) ([0-9]+) ([0-9]+)$";
+    const std::string kEXPORTREGXPATTERN = "^(export seq)$"; 
+    int regStatus = regcomp(&m_seqRegex, kSEQREGXPATTERN.c_str(), REG_EXTENDED);
+    if (regStatus != 0) {
+        (void)regerror(regStatus, &m_seqRegex, errBuff, 255);
+        throw std::runtime_error("Error trying to compile seqRegex: " + std::string(errBuff));
+    }
+
+    regStatus = regcomp(&m_exportSeqRegex, kEXPORTREGXPATTERN.c_str(), REG_EXTENDED);
+    if (regStatus != 0) {
+        (void)regerror(regStatus, &m_exportSeqRegex, errBuff, 255);
+        throw std::runtime_error("Error trying to compile exportSeqRegex: " + std::string(errBuff));
+    }
+}
+
 Requests net_protocol::RequsetHandler::DefinitionRequest(const char *buf) {
     Requests res;
     if (buf[3] == '1') {
@@ -34,10 +51,20 @@ std::pair<unsigned long int, unsigned long int> net_protocol::RequsetHandler::Ge
 
 int net_protocol::RequsetHandler::CheckingValidityParamRequest(const char *buf) {
     int CorrecktParamFlag = 0;
-    std::pair<unsigned long long int, unsigned long long int> CheckingParam(GetParamRequest(buf));
-    if (CheckingParam.first > ULONG_MAX || CheckingParam.second > ULONG_MAX) {
+    regex_t m_seqRegex, m_exportSeqRegex;
+    compileRegexes(m_seqRegex, m_exportSeqRegex);
+    if (regexec(&m_seqRegex, buf, 0, nullptr, 0) != 0) {
+        std::pair<unsigned long long int, unsigned long long int> CheckingParam(GetParamRequest(buf));
+        if (CheckingParam.first > ULONG_MAX || CheckingParam.second > ULONG_MAX) {
+            CorrecktParamFlag = -1;
+        }
+    } else if (regexec(&m_exportSeqRegex, buf, 0, nullptr, 0) != 0) {
+        ;
+    } else {
         CorrecktParamFlag = -1;
     }
+    regfree(&m_seqRegex);
+    regfree(&m_exportSeqRegex);
     return CorrecktParamFlag;
 }
 

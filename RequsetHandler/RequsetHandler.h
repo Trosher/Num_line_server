@@ -66,6 +66,8 @@ namespace net_protocol {
                                                 std::pair<unsigned long int, unsigned long int> seq2,
                                                 std::pair<unsigned long int, unsigned long int> seq3);
             
+            static void compileRegexes(regex_t& m_seqRegex, regex_t& m_exportSeqRegex);
+
         private:
             /*
                 * Переводит строку чара в число

@@ -48,6 +48,7 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
     unsigned long long int seq2_buf = seq2.first;
     unsigned long long int seq3_buf = seq3.first;
     std::pair<int, bool> StateMonitoring;
+    StateMonitoring = net_protocol::NetProcessing::Write(fd, "=== START GEN ===\n", 18);
     do {
         std::string Answer;
         if (seq1.first != 0) {
@@ -61,8 +62,9 @@ void net_protocol::Server::GeneratingNumbersToClient(std::pair<unsigned long int
             Answer += "  ";
         }
         if (seq3.first != 0) {
-            Answer += std::to_string(seq3_buf) + '\n';
+            Answer += std::to_string(seq3_buf);
         }
+        Answer += '\n';
         StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer.c_str(), Answer.length());
         seq1_buf += seq1.second;
         seq2_buf += seq2.second;
@@ -88,35 +90,39 @@ void net_protocol::Server::RequestProcessing(int fd, int &m_fds_counter_) {
     do {
         char buf[BUFF_SIZE]{};
         StateMonitoring = net_protocol::NetProcessing::Read(fd, buf, BUFF_SIZE);
-        if (StateMonitoring.first > 0) {
-            Requests RequestIdentifier = net_protocol::RequsetHandler::DefinitionRequest(buf);
-            if (RequestIdentifier != EXPORTSEQ || RequestIdentifier != ERROR_R) {
+        try {
+            if (StateMonitoring.first > 0) {
                 if (net_protocol::RequsetHandler::CheckingValidityParamRequest(buf) < 0) {
-                    char Answer[] = "WARNING: The request was made incorrectly.\nUse parameters with a lower value than ULONG_MAX ";
-                    StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+                        char Answer[] = "WARNING: The request was incorrectly \n";
+                        StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
                 } else {
-                    if (RequestIdentifier == SEQ1) {
-                        seq1 = net_protocol::RequsetHandler::GetParamRequest(buf);
-                    } else if (RequestIdentifier == SEQ2) {
-                        seq2 = net_protocol::RequsetHandler::GetParamRequest(buf);
-                    } else if (RequestIdentifier == SEQ3) {
-                        seq3 = net_protocol::RequsetHandler::GetParamRequest(buf);
+                    Requests RequestIdentifier = net_protocol::RequsetHandler::DefinitionRequest(buf);
+                    if (RequestIdentifier != EXPORTSEQ && RequestIdentifier != ERROR_R) {
+                        if (RequestIdentifier == SEQ1) {
+                            seq1 = net_protocol::RequsetHandler::GetParamRequest(buf);
+                        } else if (RequestIdentifier == SEQ2) {
+                            seq2 = net_protocol::RequsetHandler::GetParamRequest(buf);
+                        } else if (RequestIdentifier == SEQ3) {
+                            seq3 = net_protocol::RequsetHandler::GetParamRequest(buf);
+                        }
+                    } else if (RequestIdentifier == EXPORTSEQ) {
+                        if (net_protocol::RequsetHandler::CheckingValidityParamSaved(seq1, seq2, seq3) < 0) {
+                            char Answer[] = "WARNING: The request was made incorrectly.\nMore than one seq has not been set with the correct parameters,\nnumber generation is impossible \n";
+                            StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+                        } else {
+                            GeneratingNumbersToClient(seq1, seq2, seq3, fd);
+                            break;
+                        }
+                    } else if (RequestIdentifier == ERROR_R) {
+                        char Answer[] = "WARNING: The request was made incorrectly \n";
+                        StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
                     }
-                }
-            } 
-            if (RequestIdentifier == EXPORTSEQ) {
-                if (net_protocol::RequsetHandler::CheckingValidityParamSaved(seq1, seq2, seq3) < 0) {
-                    char Answer[] = "WARNING: The request was made incorrectly.\nMore than one seq has not been set with the correct parameters,\nnumber generation is impossible ";
-                    StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
-                } else {
-                    GeneratingNumbersToClient(seq1, seq2, seq3, fd);
-                    break;
-                }
+                }             
             }
-            if (RequestIdentifier == ERROR_R) {
-                char Answer[] = "WARNING: The request was made incorrectly ";
-                StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
-            }
+        } catch (const std::runtime_error& err) {
+            char Answer[] = "ERROR: It was not possible to generate regular expressions for the client's request.\n Connection interrupted \n";
+            StateMonitoring = net_protocol::NetProcessing::Write(fd, Answer, strlen(Answer));
+            break;
         }
     } while (!StateMonitoring.second && !m_shutdown_server_);
     close(fd);
@@ -136,14 +142,14 @@ void net_protocol::Server::AddNewUser() {
     std::cout << "\nGot the request to add new user\n";
     do {
         if (m_fds_counter_ > 5) {
-            perror("WARING: The maximum number of connections to the server has been reached ");
+            perror("WARING: The maximum number of connections to the server has been reached \n");
             break;
         } else {
             new_fd = accept(m_fds_[0].fd, NULL, NULL);
         }
         if (new_fd < 0) {
             if (errno != EWOULDBLOCK) {
-                perror("ERROR: Accept failed ");
+                perror("ERROR: Accept failed \n");
                 m_shutdown_server_ = true;
             }
             break;
@@ -159,14 +165,13 @@ void net_protocol::Server::AddNewUser() {
 void net_protocol::Server::CheckingConnectionRequests() {
     int status = 0;
     do {
-        // Установка времени ожидания запроса в бесконечный режим
         status = poll(m_fds_, 1, -1);
         std::cout << "poll primal event\n";
         if (status < 0) {
-            perror("ERROR: Poll fails while waiting for the request ");
+            perror("ERROR: Poll fails while waiting for the request \n");
             break;
         } else if (status == 0) {
-            perror("ERROR: Poll timed out ");
+            perror("ERROR: Poll timed out \n");
             break;
         }
         AddNewUser();

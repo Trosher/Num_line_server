@@ -10,6 +10,10 @@ Executable_server:
 Executable_client:
 	$(CC) $(ALL_CLIENT_FILE) -o EClient
 
-clean:
-	rm -rf server
-	rm -rf client
+clean_server:
+	rm -rf EServer
+
+clean_client:
+	rm -rf EClient
+
+clean: clean_server clean_client

@@ -17,7 +17,7 @@
 #include <iostream> // Функции для работы с вводом-выводом
 
 
-constexpr size_t BUFF_SIZE = 1024;
+constexpr size_t BUFF_SIZE = 255;
 
 namespace net_protocol {
     class NetProcessing {
