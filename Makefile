@@ -11,4 +11,4 @@ Executable_server:
 clean_server:
 	rm -rf EServer
 
-clean: clean_server clean_client
+clean: clean_server
