@@ -2,4 +2,4 @@
 
 project build rules:
 
-*Use the c++ 17 language standard for the assembly
+* Use the c++ 17 language standard for the assembly
