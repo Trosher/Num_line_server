@@ -178,18 +178,13 @@ void net_protocol::Server::CheckingConnectionRequests() {
     } while (!m_shutdown_server_);
 }
 
-void net_protocol::Server::SigHandler(int signum) {
-    if (signum == SIGINT) {
-        std::cout << "\nSig exit" << std::endl;
-        m_shutdown_server_ = true;
-    } else if (signum == SIGTSTP) {
-        std::cout << "\nDon't use this to shut down the server: Ctrl+Z" << std::endl;
-        m_shutdown_server_ = true;
-    }    
+void net_protocol::Server::SigHandler(int /*signum*/) {
+    std::cout << "\nSig exit" << std::endl;
+    m_shutdown_server_ = true; 
 }
 
 int main() {
-    std::cout << "If you want to stop the server use this: Ctrt+C" << std::endl;
+    std::cout << "If you want to stop the server use this: Ctrt+C or Ctrl+Z" << std::endl;
     signal(SIGINT, net_protocol::Server::SigHandler);
     signal(SIGTSTP, net_protocol::Server::SigHandler);
     net_protocol::Server server;
